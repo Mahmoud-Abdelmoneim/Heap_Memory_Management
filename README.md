@@ -2,7 +2,7 @@
 This project provides a custom implementation of memory allocation functions, namely My_malloc and my_free. It aims to demonstrate the basic functionality of memory allocation and deallocation through a simplified memory management system.
 
 # Table of Contents
-.Introduction
+Introduction
 Usage
 Features
 Code Overview
