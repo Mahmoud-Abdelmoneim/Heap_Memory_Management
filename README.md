@@ -22,12 +22,12 @@ Basic memory allocation strategy to fulfill memory allocation requests.
 # Code Overview
 The main components of the code include:
 
-* --initailiztion--: Initializes the memory management system by setting up initial data structures.
-* --My_malloc-- : Allocates memory based on requested size, splitting blocks if necessary.
-* #### my_free: Frees the allocated memory block.
-* SplitBlock: Splits a memory block into two blocks.
-* MerageTwoBlk: Merges two adjacent free blocks into a single block.
-* DisplayBlocks: Utility function to display the current state of memory blocks.
+* ___initailiztion___: Initializes the memory management system by setting up initial data structures.
+* ___My_malloc___ : Allocates memory based on requested size, splitting blocks if necessary.
+* ___my_free___: Frees the allocated memory block.
+* ___SplitBlock___: Splits a memory block into two blocks.
+* ___MerageTwoBlk___: Merges two adjacent free blocks into a single block.
+* ___DisplayBlocks___: Utility function to display the current state of memory blocks.
 # Compilation
 To compile and run the code, follow these steps:
 
