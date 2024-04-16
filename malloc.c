@@ -1,6 +1,13 @@
+/****************************************************************************************/
+/*******File   : malloc.c ***************************************************************/
+/*******Auther : Mahmoud Abdelmoniem ****************************************************/
+/*******Data   : 15/4/2024 **************************************************************/
+/*******Version: 0.0*********************************************************************/
+/****************************************************************************************/
+
 #include "malloc.h"
 #include <unistd.h>
-
+#include <string.h>
 free_list *baseList;
 free_list *headBlock;
 free_list * current ;
@@ -70,22 +77,7 @@ void* My_malloc(int size)
     {
         initailiztion();
     }
-    current = headBlock;
 
-    while (current)
-    {
-        if(current->next!=NULL)
-        {
-            if(current->free == FREE && current->next->free == FREE)
-            {
-                /**Mearge the two block*/
-                MerageTwoBlk(current,current->next);
-            }
-
-        }
-
-        current = current->next;
-    }
     current = headBlock;
     while (current)
     {
@@ -112,8 +104,7 @@ void* My_malloc(int size)
         else{
             current = current->next;
         }
-        //test = current->size; 
-        //current = current->next;
+
     }
 
     LastLocation = sbrk(SIZE_OF_SBRK_STEP);
@@ -127,27 +118,71 @@ void* My_malloc(int size)
             free_list* tempBlock = SplitBlock(current,size);
             BloackAddress = tempBlock->address +32;
             return BloackAddress;  
-            //current->next->next;
+            
         }
       
         current = current->next;  
         
     }
-    
      
-
-
-      
 
 }
 void my_free(void* ptr)
 {
 
     ((free_list*)(ptr-32))->free = FREE;
+    free_list* Templist;
+    current = headBlock;
+    while (current)
+    {
+        if(current->next!=NULL)
+        {
+            if(current->free == FREE && current->next->free == FREE)
+            {
+                /**Mearge the two block*/
+                MerageTwoBlk(current,current->next);
+                if(current->next->next == NULL)
+                {
+                   MerageTwoBlk(current,current->next); 
+                }
+            }
+
+        }
+        if(current->next == NULL)
+        {
+            if(current->size > SIZE_OF_SBRK_STEP)
+            {
+                LastLocation = sbrk(SIZE_OF_SBRK_STEP * -1);
+            }
+            Templist = current->next;
+        }
+        current = current->next;
+    }
+
 
 }
+void* my_calloc(int num,int size)
+{
+    long int totalSize = num * size;
+    void *ptr = My_malloc(totalSize);
+    if(ptr != NULL)
+    {
+        memset(ptr,0,totalSize);
+    }
+    return ptr;
 
+}
+void* my_realloc(void* ptr, int newSize)
+{
+    void* newptr = My_malloc(newSize);
+    if(newptr != NULL)
+    {
+        memcpy(newptr,ptr,((free_list*)(ptr-32))->size);
+        my_free(ptr);
+    }
+    return newptr;
 
+}
 void DisplayBlocks()
 {
     free_list* ptlist = headBlock;
@@ -160,16 +195,23 @@ void DisplayBlocks()
     }
     printf("\n|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n");
 }
-
+/*
 int main(void)
 {
-    free_list x;
     
-    int *ptr1 = (int*)My_malloc(2000);
-    int *ptr2 = (int*)My_malloc(6000);
+    printf("%p\n",sbrk(0));
+    int *ptr1 = (int*)My_malloc(50000);
+    int *ptr2 = (int*)My_malloc(50000);
     
-    int *ptr3 = (int*)My_malloc(2000);
-    int *ptr4 = (int*)My_malloc(150);
+    int *ptr3 = (int*)My_malloc(50000);
+    int *ptr4 = (int*)My_malloc(50000);
+    printf("%p\n",sbrk(0));
+    my_free(ptr1);
+    my_free(ptr2);
+    my_free(ptr3);
+    my_free(ptr4);
+    printf("%p\n",sbrk(0));
+
     DisplayBlocks();
     my_free(ptr4);
     DisplayBlocks();
@@ -188,6 +230,6 @@ int main(void)
     DisplayBlocks();
     return 0;
 }
-
+ */
 
 //gcc -o main.exe malloc.c && ./main.exe
