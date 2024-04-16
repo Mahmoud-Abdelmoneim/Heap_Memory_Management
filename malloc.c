@@ -13,18 +13,25 @@ free_list *headBlock;
 free_list * current ;
 char FirsttimeFlag=0;
 void * LastLocation ;
+
 void initailiztion()
 {
+    /*Initialize baseList and headBlock to the current program break*/
     baseList = (free_list*)sbrk(0);
     headBlock = (free_list*)sbrk(0);
-    LastLocation = sbrk(SIZE_OF_SBRK_STEP);
-    baseList->next = NULL;
-    baseList->address = (void*)baseList;
-    baseList->privios = NULL;
-    baseList->free = FREE;
-    baseList->size = SIZE_OF_SBRK_STEP;
-    FirsttimeFlag = 1;
     
+    /*Move LastLocation to a new location in memory by increasing the program break*/
+    LastLocation = sbrk(SIZE_OF_SBRK_STEP);
+    
+    /*Initialize baseList with the following properties*/
+    baseList->next = NULL;                    // Next pointer is set to NULL
+    baseList->address = (void*)baseList;       // Address is set to the address of baseList
+    baseList->privios = NULL;                  // Previous pointer is set to NULL
+    baseList->free = FREE;                     // Block is marked as free
+    baseList->size = SIZE_OF_SBRK_STEP;        // Size is set to SIZE_OF_SBRK_STEP
+    
+    // Set FirsttimeFlag to 1, indicating that initialization has been done for the first time
+    FirsttimeFlag = 1;
 }
 
 free_list* SplitBlock(free_list* block,int size )
@@ -66,101 +73,113 @@ void MerageTwoBlk(free_list* BlockOne,free_list* blockTwo)
 
 }
 
-
-
-
+/** Function to allocate memory */
 void* My_malloc(int size)
 {
+    void* BloackAddress; /* Address of the allocated block */
 
-    void * BloackAddress;
-    if(FirsttimeFlag == 0)
+    /* If this is the first allocation, initialize the memory management system */
+    if (FirsttimeFlag == 0)
     {
         initailiztion();
     }
 
+    /* Start from the head of the block list */
     current = headBlock;
+
+    /* Iterate through the block list */
     while (current)
     {
-        
-        if(current->free == FREE)
+        /* If the block is free */
+        if (current->free == FREE)
         {
-            if(current->size == size)
+            /* If the block size is exactly equal to the requested size */
+            if (current->size == size)
             {
-                BloackAddress = current->address + 32;
+                BloackAddress = current->address + 32; /* Adjust for metadata */
                 return BloackAddress;
             }
-            else if(current->size > size+32)
+            /* If the block size is greater than the requested size plus metadata */
+            else if (current->size > size + 32)
             {
-                /*split the block*/
-                free_list * tempBlock = SplitBlock(current,size);
-                BloackAddress = tempBlock->address +32;
+                /* Split the block */
+                free_list* tempBlock = SplitBlock(current, size);
+                BloackAddress = tempBlock->address + 32; /* Adjust for metadata */
                 return BloackAddress;
             }
-            else{
-                current= current->next;
+            else
+            {
+                current = current->next;
             }
-
         }
-        else{
+        else
+        {
             current = current->next;
         }
-
     }
 
-    LastLocation = sbrk(SIZE_OF_SBRK_STEP);
-    current = headBlock;
+    /* If no suitable block was found, allocate a new block */
+    LastLocation = sbrk(SIZE_OF_SBRK_STEP); /* Increase the program break */
+    current = headBlock; /* Reset the current block to the head */
+
+    /* Iterate through the block list again */
     while (current)
     {
-        /* code */
-        if(current->next == NULL)
+        if (current->next == NULL)
         {
+            /* Increase the size of the last block */
             current->size += SIZE_OF_SBRK_STEP;
-            free_list* tempBlock = SplitBlock(current,size);
-            BloackAddress = tempBlock->address +32;
-            return BloackAddress;  
-            
+            /* Split the block */
+            free_list* tempBlock = SplitBlock(current, size);
+            BloackAddress = tempBlock->address + 32; /* Adjust for metadata */
+            return BloackAddress;
         }
-      
-        current = current->next;  
-        
-    }
-     
 
+        current = current->next;
+    }
 }
+
+/** Function to free memory */
 void my_free(void* ptr)
 {
-
+    /* Mark the block as free */
     ((free_list*)(ptr-32))->free = FREE;
     free_list* Templist;
+
+    /* Start from the head of the block list */
     current = headBlock;
     while (current)
     {
-        if(current->next!=NULL)
+        /* Check if the current block and the next block are free */
+        if (current->next != NULL)
         {
-            if(current->free == FREE && current->next->free == FREE)
+            if (current->free == FREE && current->next->free == FREE)
             {
-                /**Mearge the two block*/
-                MerageTwoBlk(current,current->next);
-                if(current->next->next == NULL)
+                /** Merge the two blocks */
+                MerageTwoBlk(current, current->next);
+                /* Check if the merged block can be merged with the next block */
+                if (current->next->next == NULL)
                 {
-                   MerageTwoBlk(current,current->next); 
+                   MerageTwoBlk(current, current->next); 
                 }
             }
-
         }
-        if(current->next == NULL)
+
+        /* Check if the current block is the last block */
+        if (current->next == NULL)
         {
-            if(current->size > SIZE_OF_SBRK_STEP)
+            /* If the last block is larger than the size of a single sbrk step, reduce the program break */
+            if (current->size > SIZE_OF_SBRK_STEP)
             {
                 LastLocation = sbrk(SIZE_OF_SBRK_STEP * -1);
             }
             Templist = current->next;
         }
+
         current = current->next;
     }
-
-
 }
+
 void* my_calloc(int num,int size)
 {
     long int totalSize = num * size;
@@ -195,3 +214,41 @@ void DisplayBlocks()
     }
     printf("\n|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n");
 }
+/*
+int main(void)
+{
+    
+    printf("%p\n",sbrk(0));
+    int *ptr1 = (int*)My_malloc(50000);
+    int *ptr2 = (int*)My_malloc(50000);
+    
+    int *ptr3 = (int*)My_malloc(50000);
+    int *ptr4 = (int*)My_malloc(50000);
+    printf("%p\n",sbrk(0));
+    my_free(ptr1);
+    my_free(ptr2);
+    my_free(ptr3);
+    my_free(ptr4);
+    printf("%p\n",sbrk(0));
+
+    DisplayBlocks();
+    my_free(ptr4);
+    DisplayBlocks();
+    ptr4 = (int*)My_malloc(160);
+    DisplayBlocks();
+    my_free(ptr2);
+    my_free(ptr3);
+    ptr3 = (int*)My_malloc(7000);
+    my_free(ptr3);
+    my_free(ptr4);
+    my_free(ptr1);
+    my_free(ptr2);    
+    int*ptr5= (int*)My_malloc(3000);
+    ptr1=(int*)My_malloc(7000);
+    int*ptr6 = (int*)My_malloc(130000);
+    DisplayBlocks();
+    return 0;
+}
+ */
+
+//gcc -o main.exe malloc.c && ./main.exe
