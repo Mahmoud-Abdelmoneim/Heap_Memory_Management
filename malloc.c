@@ -33,7 +33,11 @@ void initailiztion()
     // Set FirsttimeFlag to 1, indicating that initialization has been done for the first time
     FirsttimeFlag = 1;
 }
-
+/**
+ * 
+ * 
+ * 
+*/
 free_list* SplitBlock(free_list* block,int size )
 {
     
@@ -68,8 +72,10 @@ void MerageTwoBlk(free_list* BlockOne,free_list* blockTwo)
 {
     /**change the next of the first block to the next of the second block */
     BlockOne->next = blockTwo->next;
+    if(blockTwo->next != NULL)
+         blockTwo->next->privios = BlockOne->address;
     /**change the size of the the block whic is the sum of the sze of the two blocks and 32byte(size of meta data of the second block)*/
-    BlockOne->size = BlockOne->size + blockTwo->size +32; 
+    BlockOne->size = BlockOne->size + blockTwo->size + SIZE_OF_META_DATA; 
 
 }
 
@@ -94,17 +100,26 @@ void* My_malloc(int size)
         if (current->free == FREE)
         {
             /* If the block size is exactly equal to the requested size */
-            if (current->size == size)
+            if (current->size == size + SIZE_OF_META_DATA)
             {
-                BloackAddress = current->address + 32; /* Adjust for metadata */
+                BloackAddress = current->address + SIZE_OF_META_DATA; /* Adjust for metadata */
+               // free_list* lastfree = 
+                current->free = NOT_FREE;
+                current->size = size;
+                current->next = (free_list*)sbrk(SIZE_OF_SBRK_STEP);
+                current->next->size = SIZE_OF_SBRK_STEP;
+                current->next->address = current->next;
+                current->next->privios = current;
+                current->next->free = FREE;
+                current->next->next = NULL;
                 return BloackAddress;
             }
             /* If the block size is greater than the requested size plus metadata */
-            else if (current->size > size + 32)
+            else if (current->size > (size + SIZE_OF_META_DATA*2))
             {
                 /* Split the block */
                 free_list* tempBlock = SplitBlock(current, size);
-                BloackAddress = tempBlock->address + 32; /* Adjust for metadata */
+                BloackAddress = tempBlock->address + SIZE_OF_META_DATA; /* Adjust for metadata */
                 return BloackAddress;
             }
             else
@@ -131,40 +146,42 @@ void* My_malloc(int size)
             current->size += SIZE_OF_SBRK_STEP;
             /* Split the block */
             free_list* tempBlock = SplitBlock(current, size);
-            BloackAddress = tempBlock->address + 32; /* Adjust for metadata */
+            BloackAddress = tempBlock->address + SIZE_OF_META_DATA; /* Adjust for metadata */
             return BloackAddress;
         }
 
         current = current->next;
     }
+    return NULL;
 }
 
 /** Function to free memory */
 void my_free(void* ptr)
 {
     /* Mark the block as free */
-    ((free_list*)(ptr-32))->free = FREE;
-    free_list* Templist;
+    free_list* Templist = (free_list*)(ptr-32);
+    Templist->free = FREE;
+
+    if((void*)(Templist->next) != NULL)
+    {
+        if((Templist->next)->free == FREE)
+        {
+            MerageTwoBlk(Templist,Templist->next);
+        }
+    }
+    if(Templist->privios != NULL)
+    {
+        if((Templist->privios)->free == FREE )
+        {
+            MerageTwoBlk(Templist->privios ,Templist);
+        }   
+    }
+
 
     /* Start from the head of the block list */
     current = headBlock;
     while (current)
     {
-        /* Check if the current block and the next block are free */
-        if (current->next != NULL)
-        {
-            if (current->free == FREE && current->next->free == FREE)
-            {
-                /** Merge the two blocks */
-                MerageTwoBlk(current, current->next);
-                /* Check if the merged block can be merged with the next block */
-                if (current->next->next == NULL)
-                {
-                   MerageTwoBlk(current, current->next); 
-                }
-            }
-        }
-
         /* Check if the current block is the last block */
         if (current->next == NULL)
         {
@@ -173,7 +190,7 @@ void my_free(void* ptr)
             {
                 LastLocation = sbrk(SIZE_OF_SBRK_STEP * -1);
             }
-            Templist = current->next;
+            //Templist = current->next;
         }
 
         current = current->next;
@@ -191,12 +208,12 @@ void* my_calloc(int num,int size)
     return ptr;
 
 }
-void* my_realloc(void* ptr, int newSize)
+void* my_realloc(void* ptr, size_t newSize)
 {
     void* newptr = My_malloc(newSize);
     if(newptr != NULL)
     {
-        memcpy(newptr,ptr,((free_list*)(ptr-32))->size);
+        memcpy(newptr,ptr,((free_list*)(ptr-SIZE_OF_META_DATA))->size);
         my_free(ptr);
     }
     return newptr;
@@ -214,6 +231,27 @@ void DisplayBlocks()
     }
     printf("\n|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n");
 }
+void* malloc(size_t size)
+{
+    return My_malloc(size);
+}
+void free(void*ptr)
+{
+    my_free(ptr);
+}
+
+void* realloc(void* ptr,size_t newsize)
+{
+    return my_realloc(ptr,newsize);
+}
+
+
+void* calloc(size_t num ,size_t size)
+{
+    return my_calloc(num,size);
+}
+
+
 /*
 int main(void)
 {
@@ -249,6 +287,35 @@ int main(void)
     DisplayBlocks();
     return 0;
 }
- */
 
+
+int main()
+{
+
+    int *ptr[10000];
+    for (int  i = 0; i < 10000; i++)
+    {
+        
+    //if(i == 505)
+    //sleep(10);
+    //getchar();
+        ptr[i] = (int*)malloc(10240);
+        //printf("address[%d] = %p\n",i,ptr[i]);
+        
+        //if(ptr[i] == ptr[i-1] )
+        //getchar();
+
+    }
+    for (int j = 5000 - 1; j < 10000; j += 1)
+    {
+        if(j == 9998)
+        sleep(10);
+        free(ptr[j]);
+        //printf("address[%d] = %p\n",j,ptr[j]);
+    }
+    
+
+
+
+} */
 //gcc -o main.exe malloc.c && ./main.exe

@@ -41,6 +41,9 @@ typedef struct free{
 
 void* My_malloc(int size);
 void my_free(void* ptr);
+
+void* my_calloc(int num,int size);
+void* my_realloc(void* ptr,size_t newsize);
 #endif
 
 
