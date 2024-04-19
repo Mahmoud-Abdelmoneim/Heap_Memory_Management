@@ -34,4 +34,4 @@ To compile and run the code, follow these steps:
 Include the malloc.h header file in your source code.
 # makefile
 use the makefile to build
-___use make and make clean to clean__
+use __make and make clean to clean__
