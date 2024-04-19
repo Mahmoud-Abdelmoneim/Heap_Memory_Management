@@ -8,7 +8,7 @@
 #include "malloc.h"
 #include <unistd.h>
 #include <string.h>
-free_list *baseList;
+
 free_list *headBlock;
 free_list * current ;
 char FirsttimeFlag=0;
@@ -17,27 +17,32 @@ void * LastLocation ;
 void initailiztion()
 {
     /*Initialize baseList and headBlock to the current program break*/
-    baseList = (free_list*)sbrk(0);
     headBlock = (free_list*)sbrk(0);
     
     /*Move LastLocation to a new location in memory by increasing the program break*/
     LastLocation = sbrk(SIZE_OF_SBRK_STEP);
     
     /*Initialize baseList with the following properties*/
-    baseList->next = NULL;                    // Next pointer is set to NULL
-    baseList->address = (void*)baseList;       // Address is set to the address of baseList
-    baseList->privios = NULL;                  // Previous pointer is set to NULL
-    baseList->free = FREE;                     // Block is marked as free
-    baseList->size = SIZE_OF_SBRK_STEP;        // Size is set to SIZE_OF_SBRK_STEP
+    headBlock->next = NULL;                    // Next pointer is set to NULL
+    headBlock->address = (void*)headBlock;       // Address is set to the address of baseList
+    headBlock->privios = NULL;                  // Previous pointer is set to NULL
+    headBlock->free = FREE;                     // Block is marked as free
+    headBlock->size = SIZE_OF_SBRK_STEP;        // Size is set to SIZE_OF_SBRK_STEP
     
     // Set FirsttimeFlag to 1, indicating that initialization has been done for the first time
     FirsttimeFlag = 1;
 }
 /**
- * 
- * 
- * 
-*/
+ * @brief Splits a memory block into two blocks, allocating the first block and leaving the second block free.
+ *
+ * This function splits the given memory block into two blocks. The first block is allocated
+ * to fulfill the requested size, and the second block remains free. It updates the metadata
+ * of both blocks and links them appropriately in the free list.
+ *
+ * @param block Pointer to the memory block to split.
+ * @param size Size of the allocated memory block (excluding metadata).
+ * @return Pointer to the newly allocated memory block.
+ */
 free_list* SplitBlock(free_list* block,int size )
 {
     
@@ -67,7 +72,18 @@ free_list* SplitBlock(free_list* block,int size )
     return (free_list*)tempAddress;
  
 }
-
+/**
+ * @brief Merges two adjacent free memory blocks into a single block.
+ *
+ * This function merges two adjacent free memory blocks into a single block. It updates
+ * the next pointer of the first block to point to the next block after the second block.
+ * If the next block is not NULL, it also updates the previous pointer of the next block
+ * to point to the first block. Finally, it updates the size of the first block to be the
+ * sum of the sizes of the two blocks plus the size of the metadata of the second block.
+ *
+ * @param BlockOne Pointer to the first memory block.
+ * @param blockTwo Pointer to the second memory block.
+ */
 void MerageTwoBlk(free_list* BlockOne,free_list* blockTwo)
 {
     /**change the next of the first block to the next of the second block */
@@ -79,7 +95,18 @@ void MerageTwoBlk(free_list* BlockOne,free_list* blockTwo)
 
 }
 
-/** Function to allocate memory */
+/**
+ * @brief Allocates a block of memory of the given size.
+ *
+ * This function allocates a block of memory of the specified size. It first checks
+ * the existing free memory blocks to see if there is a block that can accommodate
+ * the requested size. If a suitable block is found, it is marked as allocated and
+ * returned to the caller. If no suitable block is found, a new block is allocated
+ * using the sbrk system call.
+ *
+ * @param size Size of the memory block to allocate.
+ * @return Pointer to the allocated memory block, or NULL if allocation fails.
+ */
 void* My_malloc(int size)
 {
     void* BloackAddress; /* Address of the allocated block */
@@ -102,12 +129,17 @@ void* My_malloc(int size)
             /* If the block size is exactly equal to the requested size */
             if (current->size == size + SIZE_OF_META_DATA)
             {
+
                 BloackAddress = current->address + SIZE_OF_META_DATA; /* Adjust for metadata */
-               // free_list* lastfree = 
+                /*Change the status of the block to NOT_FREE*/
                 current->free = NOT_FREE;
+                /*updatre the size of the new block*/
                 current->size = size;
+                /*increasing the program breack since the previous block is the last free block*/
                 current->next = (free_list*)sbrk(SIZE_OF_SBRK_STEP);
+                /*update the size of the added block by th SIZE_OF_SBRK_STEP*/
                 current->next->size = SIZE_OF_SBRK_STEP;
+                /*linking the added block with the list and set its meata data */
                 current->next->address = current->next;
                 current->next->privios = current;
                 current->next->free = FREE;
@@ -155,22 +187,37 @@ void* My_malloc(int size)
     return NULL;
 }
 
-/** Function to free memory */
+/**
+ * @brief Frees the memory block pointed to by ptr and merges adjacent free blocks if possible.
+ *
+ * This function marks the memory block pointed to by ptr as free and then checks
+ * if the adjacent blocks are also free. If the next or previous block is free,
+ * it merges the blocks into a single larger block to avoid fragmentation.
+ *
+ * @param ptr Pointer to the memory block to free.
+ */
 void my_free(void* ptr)
 {
     /* Mark the block as free */
     free_list* Templist = (free_list*)(ptr-32);
     Templist->free = FREE;
 
+
+    /**take dicession for merging the tow blocks*/
+
+    /*check if the next block if NULL or not */
     if((void*)(Templist->next) != NULL)
     {
+        /*check if the next block if FREE or not */
         if((Templist->next)->free == FREE)
         {
             MerageTwoBlk(Templist,Templist->next);
         }
     }
+    /*check if the previos block if NULL or not */
     if(Templist->privios != NULL)
     {
+        /*check if the previos block if FREE or not */
         if((Templist->privios)->free == FREE )
         {
             MerageTwoBlk(Templist->privios ,Templist);
@@ -189,6 +236,7 @@ void my_free(void* ptr)
             if (current->size > SIZE_OF_SBRK_STEP)
             {
                 LastLocation = sbrk(SIZE_OF_SBRK_STEP * -1);
+                current->size -=  SIZE_OF_SBRK_STEP;
             }
             //Templist = current->next;
         }
@@ -196,7 +244,17 @@ void my_free(void* ptr)
         current = current->next;
     }
 }
-
+/**
+ * @brief Allocates memory for an array of num elements of size bytes each and initializes the memory to zero.
+ *
+ * This function allocates memory for an array of num elements, each of which is size bytes long.
+ * It then initializes all the bytes in the allocated memory to zero. The total amount of memory
+ * allocated is num * size bytes.
+ *
+ * @param num Number of elements to allocate memory for.
+ * @param size Size of each element, in bytes.
+ * @return Pointer to the allocated memory block, or NULL if allocation fails.
+ */
 void* my_calloc(int num,int size)
 {
     long int totalSize = num * size;
@@ -208,6 +266,18 @@ void* my_calloc(int num,int size)
     return ptr;
 
 }
+/**
+ * @brief Changes the size of the memory block pointed to by ptr to the given newSize.
+ *
+ * This function reallocates the memory block pointed to by ptr to the size specified
+ * by newSize. It allocates a new memory block of the given size, copies the contents
+ * of the old block to the new block, and then frees the old block. If the reallocation
+ * fails, NULL is returned and the original block is left unchanged.
+ *
+ * @param ptr Pointer to the memory block to reallocate.
+ * @param newSize New size for the memory block.
+ * @return Pointer to the reallocated memory block, or NULL if reallocation fails.
+ */
 void* my_realloc(void* ptr, size_t newSize)
 {
     void* newptr = My_malloc(newSize);
@@ -219,6 +289,12 @@ void* my_realloc(void* ptr, size_t newSize)
     return newptr;
 
 }
+/**
+ * @brief Displays information about each memory block in the free list.
+ *
+ * This function iterates through the free list and prints information about each memory block,
+ * including its address, next and previous block addresses, size, and state (free or allocated).
+ */
 void DisplayBlocks()
 {
     free_list* ptlist = headBlock;
@@ -251,71 +327,3 @@ void* calloc(size_t num ,size_t size)
     return my_calloc(num,size);
 }
 
-
-/*
-int main(void)
-{
-    
-    printf("%p\n",sbrk(0));
-    int *ptr1 = (int*)My_malloc(50000);
-    int *ptr2 = (int*)My_malloc(50000);
-    
-    int *ptr3 = (int*)My_malloc(50000);
-    int *ptr4 = (int*)My_malloc(50000);
-    printf("%p\n",sbrk(0));
-    my_free(ptr1);
-    my_free(ptr2);
-    my_free(ptr3);
-    my_free(ptr4);
-    printf("%p\n",sbrk(0));
-
-    DisplayBlocks();
-    my_free(ptr4);
-    DisplayBlocks();
-    ptr4 = (int*)My_malloc(160);
-    DisplayBlocks();
-    my_free(ptr2);
-    my_free(ptr3);
-    ptr3 = (int*)My_malloc(7000);
-    my_free(ptr3);
-    my_free(ptr4);
-    my_free(ptr1);
-    my_free(ptr2);    
-    int*ptr5= (int*)My_malloc(3000);
-    ptr1=(int*)My_malloc(7000);
-    int*ptr6 = (int*)My_malloc(130000);
-    DisplayBlocks();
-    return 0;
-}
-
-
-int main()
-{
-
-    int *ptr[10000];
-    for (int  i = 0; i < 10000; i++)
-    {
-        
-    //if(i == 505)
-    //sleep(10);
-    //getchar();
-        ptr[i] = (int*)malloc(10240);
-        //printf("address[%d] = %p\n",i,ptr[i]);
-        
-        //if(ptr[i] == ptr[i-1] )
-        //getchar();
-
-    }
-    for (int j = 5000 - 1; j < 10000; j += 1)
-    {
-        if(j == 9998)
-        sleep(10);
-        free(ptr[j]);
-        //printf("address[%d] = %p\n",j,ptr[j]);
-    }
-    
-
-
-
-} */
-//gcc -o main.exe malloc.c && ./main.exe
