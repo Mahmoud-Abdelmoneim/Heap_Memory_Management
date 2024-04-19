@@ -13,7 +13,14 @@ free_list *headBlock;
 free_list * current ;
 char FirsttimeFlag=0;
 void * LastLocation ;
-
+/**
+ * @brief Initializes the memory management system.
+ *
+ * This function initializes the memory management system by setting up the initial
+ * free list. It sets the headBlock to the current program break, moves LastLocation
+ * to a new location in memory by increasing the program break, and initializes the
+ * headBlock with the specified properties (next, address, privios, free, size).
+ */
 void initailiztion()
 {
     /*Initialize baseList and headBlock to the current program break*/
